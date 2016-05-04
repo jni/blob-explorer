@@ -110,7 +110,6 @@ def temp_image_files(images, colormap='magma'):
 
 
 def bokeh_plot(df):
-    source = ColumnDataSource(df)
     tooltip = """
         <div>
             <div>
@@ -128,6 +127,7 @@ def bokeh_plot(df):
     d, filenames = temp_image_files(df['images'])
     print(d)
     df['image_files'] = filenames
+    source = ColumnDataSource(df)
     bplot.output_file('plot.html')
     hover0 = HoverTool(tooltips=tooltip)
     hover1 = HoverTool(tooltips=tooltip)
