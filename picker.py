@@ -146,9 +146,10 @@ def bokeh_plot(df):
 
 
 def normalize_images(ims):
-    max_val = np.max([np.max(im) for im in ims])
+    max_val = np.median([np.percentile(im, 99.9) for im in ims])
     for im in ims:
         im /= max_val
+        np.clip(im, 0, 1, out=im)
     return ims
 
 
