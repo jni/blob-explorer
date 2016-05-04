@@ -127,6 +127,9 @@ def bokeh_plot(df):
     d, filenames = temp_image_files(df['images'])
     print(d)
     df['image_files'] = filenames
+    colors_raw = cm.get_cmap('viridis')(df['time'], bytes=True)
+    colors_str = ['#%02x%02x%02x' % tuple(c[:3]) for c in colors_raw]
+    df['color'] = colors_str
     source = ColumnDataSource(df)
     bplot.output_file('plot.html')
     hover0 = HoverTool(tooltips=tooltip)
@@ -134,9 +137,9 @@ def bokeh_plot(df):
     tools0 = [t() for t in TOOLS] + [hover0]
     tools1 = [t() for t in TOOLS] + [hover1]
     pca = bplot.figure(tools=tools0)
-    pca.circle('PC1', 'PC2', source=source)
+    pca.circle('PC1', 'PC2', color='color', source=source)
     tsne = bplot.figure(tools=tools1)
-    tsne.circle('tSNE-0', 'tSNE-1', source=source)
+    tsne.circle('tSNE-0', 'tSNE-1', color='color', source=source)
     p = bplot.gridplot([[pca, tsne]])
     bplot.show(p)
 
