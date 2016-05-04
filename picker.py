@@ -153,9 +153,9 @@ def normalize_images(ims):
     return ims
 
 
-if __name__ == '__main__':
+def main(argv):
     print('reading images')
-    images = io.imread_collection(sys.argv[1:],
+    images = io.imread_collection(argv[1:],
                                   conserve_memory=False, plugin='tifffile')
     images = normalize_images(images)
     print('extracting data')
@@ -163,3 +163,7 @@ if __name__ == '__main__':
 
     print('preparing plots')
     bokeh_plot(df)
+
+
+if __name__ == '__main__':
+    main(sys.argv)
