@@ -127,7 +127,8 @@ def bokeh_plot(df):
     d, filenames = temp_image_files(df['images'])
     print(d)
     df['image_files'] = filenames
-    colors_raw = cm.get_cmap('viridis')(df['time'], bytes=True)
+    colors_raw = cm.viridis((df['time'] - df['time'].min()) /
+                            (df['time'].max() - df['time'].min()), bytes=True)
     colors_str = ['#%02x%02x%02x' % tuple(c[:3]) for c in colors_raw]
     df['color'] = colors_str
     source = ColumnDataSource(df)
