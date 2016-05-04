@@ -129,11 +129,13 @@ def bokeh_plot(df):
     print(d)
     df['image_files'] = filenames
     bplot.output_file('plot.html')
-    hover = HoverTool(tooltips=tooltip)
-    tools = TOOLS + [hover]
-    pca = bplot.figure(tools=tools)
+    hover0 = HoverTool(tooltips=tooltip)
+    hover1 = HoverTool(tooltips=tooltip)
+    tools0 = [t() for t in TOOLS] + [hover0]
+    tools1 = [t() for t in TOOLS] + [hover1]
+    pca = bplot.figure(tools=tools0)
     pca.circle('PC1', 'PC2', source=source)
-    tsne = bplot.figure(tools=tools)
+    tsne = bplot.figure(tools=tools1)
     tsne.circle('tSNE-0', 'tSNE-1', source=source)
     p = bplot.gridplot([[pca, tsne]])
     bplot.show(p)
