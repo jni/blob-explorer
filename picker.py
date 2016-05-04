@@ -103,7 +103,7 @@ def temp_image_files(images, colormap='magma'):
     urls = []
     for im in images:
         fout = tempfile.NamedTemporaryFile(suffix='.png', dir=d, delete=False)
-        io.imsave(fout.name, im)
+        io.imsave(fout.name, cmap(im))
         fout.close()
         urls.append(pathlib.Path(fout.name).as_uri())
     return d, urls
