@@ -114,7 +114,7 @@ def bokeh_plot(df):
         <div>
             <div>
                 <img
-                src="@image_files" height="60" alt="image" width="60"
+                src="@image_files" height="60" alt="image"
                 style="float: left; margin: 0px 15px 15px 0px;"
                 border="2"
                 ></img>
