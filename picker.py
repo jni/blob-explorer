@@ -1,23 +1,36 @@
 """
-compute the mean and stddev of 100 data sets and plot mean vs stddev.
-When you click on one of the mu, sigma points, plot the raw data from
-the dataset that generated the mean and stddev
+Compute features on a bunch of images and display as hoverable-scatterplot.
 """
+import os
 import sys
+import tempfile
+import pathlib
+from io import BytesIO
+import base64
+
 import numpy as np
+from PIL import Image
 
-import matplotlib as mpl
-mpl.use('qt4agg')
-import matplotlib.pyplot as plt
-plt.rcParams['image.interpolation'] = 'nearest'
-plt.rcParams['image.cmap'] = 'magma'
-plt.style.use('seaborn-colorblind')
-
+from matplotlib import cm
 
 from scipy import ndimage as ndi
-from skimage import io, filters, measure, morphology
+from skimage import io, filters, measure, morphology, img_as_ubyte
 import pandas as pd
 from sklearn import decomposition, manifold
+
+from bokeh.models import (LassoSelectTool, PanTool,
+                          ResizeTool, ResetTool,
+                          HoverTool, WheelZoomTool)
+TOOLS = [LassoSelectTool, PanTool, WheelZoomTool, ResizeTool, ResetTool]
+from bokeh.models import ColumnDataSource
+from bokeh import plotting as bplot
+
+
+def to_png(arr):
+    out = BytesIO()
+    im = Image.fromarray(arr)
+    im.save(out, format='png')
+    return out.getvalue()
 
 
 def extract_properties(image, closing_size=2):
@@ -37,19 +50,22 @@ def extract_properties(image, closing_size=2):
 
 
 def extract_properties_multi_image(image_collection, closing_size=2,
-                                   min_blob_size=4, max_blob_size=100):
+                                   min_blob_size=9, max_blob_size=100):
     all_results = []
     all_objs = []
     times = []
+    filenames = []
     for idx, image in enumerate(image_collection):
         print('processing image ', idx)
-        timepoint = int(image_collection.files[idx].split('-')[1][:-1])
+        filename = image_collection.files[idx]
+        timepoint = int(filename.split('-')[1][:-1])
         names, proptable, objs = extract_properties(image, closing_size)
         passed = np.flatnonzero((proptable[:, 0] > min_blob_size) *
                                 (proptable[:, 0] < max_blob_size))
         all_results.append(proptable[passed])
         all_objs.extend([objs[i] for i in passed])
         times.extend([timepoint] * len(passed))
+        filenames.extend([filename] * len(passed))
     all_results = np.vstack(all_results)
     times = np.array(times)[:, np.newaxis]
     dec, dec_names, pca_weights = dimension_reductions(all_results)
@@ -57,6 +73,7 @@ def extract_properties_multi_image(image_collection, closing_size=2,
     data = np.hstack((times, all_results, dec))
     df = pd.DataFrame(data, columns=col_names)
     df['images'] = [obj.intensity_image for obj in all_objs]
+    df['source_filenames'] = [os.path.split(p)[1] for p in filenames]
     return all_results, df, pca_weights
 
 
@@ -89,35 +106,70 @@ def dimension_reductions(data_table):
     return np.hstack((pca, tsne)), names, pca_obj.components_
 
 
-if __name__ == '__main__':
+def b64_image_files(images, colormap='magma'):
+    cmap = cm.get_cmap(colormap)
+    urls = []
+    for im in images:
+        png = to_png(img_as_ubyte(cmap(im)))
+        url = 'data:image/png;base64,' + base64.b64encode(png).decode('utf-8')
+        urls.append(url)
+    return urls
+
+
+def bokeh_plot(df):
+    tooltip = """
+        <div>
+            <div>
+                <img
+                src="@image_files" height="60" alt="image"
+                style="float: left; margin: 0px 15px 15px 0px; image-rendering: pixelated;"
+                border="2"
+                ></img>
+            </div>
+            <div>
+                <span style="font-size: 17px;">@source_filenames</span>
+            </div>
+        </div>
+              """
+    filenames = b64_image_files(df['images'])
+    df['image_files'] = filenames
+    colors_raw = cm.viridis((df['time'] - df['time'].min()) /
+                            (df['time'].max() - df['time'].min()), bytes=True)
+    colors_str = ['#%02x%02x%02x' % tuple(c[:3]) for c in colors_raw]
+    df['color'] = colors_str
+    source = ColumnDataSource(df)
+    bplot.output_file('plot.html')
+    hover0 = HoverTool(tooltips=tooltip)
+    hover1 = HoverTool(tooltips=tooltip)
+    tools0 = [t() for t in TOOLS] + [hover0]
+    tools1 = [t() for t in TOOLS] + [hover1]
+    pca = bplot.figure(tools=tools0)
+    pca.circle('PC1', 'PC2', color='color', source=source)
+    tsne = bplot.figure(tools=tools1)
+    tsne.circle('tSNE-0', 'tSNE-1', color='color', source=source)
+    p = bplot.gridplot([[pca, tsne]])
+    bplot.show(p)
+
+
+def normalize_images(ims):
+    max_val = np.median([np.percentile(im, 99.9) for im in ims])
+    for im in ims:
+        im /= max_val
+        np.clip(im, 0, 1, out=im)
+    return ims
+
+
+def main(argv):
     print('reading images')
-    images = io.imread_collection(sys.argv[1:],
+    images = io.imread_collection(argv[1:],
                                   conserve_memory=False, plugin='tifffile')
+    images = normalize_images(images)
     print('extracting data')
     table, df, weights = extract_properties_multi_image(images)
 
     print('preparing plots')
-    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
-    pts_ax, im_ax = axes.ravel()
-    pts_ax.set_title('Images grouped by similarity')
-    im_ax.set_title('Clicked image')
-    x, y = 'tSNE-0', 'tSNE-1'
-    if len(sys.argv) > 1 and sys.argv[1].lower() == 'pca':
-        x, y = 'PC1', 'PC2'
-    pts_ax.scatter(df[x], df[y], c=df['time'], picker=5)
+    bokeh_plot(df)
 
-    def onpick(event):
 
-        N = len(event.ind)
-        if N == 0:
-            return True
-        dataind = event.ind[0]  # pick only the first element, ignore others
-        image = df['images'][dataind]
-        im_ax.imshow(image)
-        im_ax.set_yticks([0, image.shape[0] - 1])
-        im_ax.set_xticks([0, image.shape[1] - 1])
-        return True
-
-    fig.canvas.mpl_connect('pick_event', onpick)
-
-    plt.show()
+if __name__ == '__main__':
+    main(sys.argv)
