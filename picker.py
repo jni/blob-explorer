@@ -21,7 +21,6 @@ from bokeh.models import (LassoSelectTool, PanTool,
 TOOLS = [LassoSelectTool, PanTool, WheelZoomTool, ResizeTool, ResetTool]
 from bokeh.models import ColumnDataSource
 from bokeh import plotting as bplot
-#from bokeh.plotting import figure, gridplot, output_file, show
 
 
 def extract_properties(image, closing_size=2):
