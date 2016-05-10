@@ -112,6 +112,7 @@ def b64_image_files(images, colormap='magma'):
     for im in images:
         png = to_png(img_as_ubyte(cmap(im)))
         url = 'data:image/png;base64,' + base64.b64encode(png).decode('utf-8')
+        urls.append(url)
     return urls
 
 
