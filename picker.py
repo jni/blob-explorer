@@ -120,8 +120,8 @@ def bokeh_plot(df):
         <div>
             <div>
                 <img
-                src="@image_files" height="60" alt="image" width="60"
-                style="float: left; margin: 0px 15px 15px 0px;"
+                src="@image_files" height="60" alt="image"
+                style="float: left; margin: 0px 15px 15px 0px; image-rendering: pixelated;"
                 border="2"
                 ></img>
             </div>
@@ -132,7 +132,8 @@ def bokeh_plot(df):
               """
     filenames = b64_image_files(df['images'])
     df['image_files'] = filenames
-    colors_raw = cm.get_cmap('viridis')(df['time'], bytes=True)
+    colors_raw = cm.viridis((df['time'] - df['time'].min()) /
+                            (df['time'].max() - df['time'].min()), bytes=True)
     colors_str = ['#%02x%02x%02x' % tuple(c[:3]) for c in colors_raw]
     df['color'] = colors_str
     source = ColumnDataSource(df)
@@ -150,15 +151,16 @@ def bokeh_plot(df):
 
 
 def normalize_images(ims):
-    max_val = np.max([np.max(im) for im in ims])
+    max_val = np.median([np.percentile(im, 99.9) for im in ims])
     for im in ims:
         im /= max_val
+        np.clip(im, 0, 1, out=im)
     return ims
 
 
-if __name__ == '__main__':
+def main(argv):
     print('reading images')
-    images = io.imread_collection(sys.argv[1:],
+    images = io.imread_collection(argv[1:],
                                   conserve_memory=False, plugin='tifffile')
     images = normalize_images(images)
     print('extracting data')
@@ -166,3 +168,7 @@ if __name__ == '__main__':
 
     print('preparing plots')
     bokeh_plot(df)
+
+
+if __name__ == '__main__':
+    main(sys.argv)
