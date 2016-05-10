@@ -5,8 +5,10 @@ import os
 import sys
 import tempfile
 import pathlib
+from io import BytesIO
 
 import numpy as np
+from PIL import Image
 
 from matplotlib import cm
 
@@ -21,6 +23,13 @@ from bokeh.models import (LassoSelectTool, PanTool,
 TOOLS = [LassoSelectTool, PanTool, WheelZoomTool, ResizeTool, ResetTool]
 from bokeh.models import ColumnDataSource
 from bokeh import plotting as bplot
+
+
+def to_png(arr):
+    out = BytesIO()
+    im = Image.fromarray(arr)
+    im.save(out, format='png')
+    return out.getvalue()
 
 
 def extract_properties(image, closing_size=2):
