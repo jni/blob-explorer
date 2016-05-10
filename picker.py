@@ -6,6 +6,7 @@ import sys
 import tempfile
 import pathlib
 from io import BytesIO
+import base64
 
 import numpy as np
 from PIL import Image
@@ -13,7 +14,7 @@ from PIL import Image
 from matplotlib import cm
 
 from scipy import ndimage as ndi
-from skimage import io, filters, measure, morphology
+from skimage import io, filters, measure, morphology, img_as_ubyte
 import pandas as pd
 from sklearn import decomposition, manifold
 
@@ -105,16 +106,13 @@ def dimension_reductions(data_table):
     return np.hstack((pca, tsne)), names, pca_obj.components_
 
 
-def temp_image_files(images, colormap='magma'):
+def b64_image_files(images, colormap='magma'):
     cmap = cm.get_cmap(colormap)
-    d = tempfile.mkdtemp()
     urls = []
     for im in images:
-        fout = tempfile.NamedTemporaryFile(suffix='.png', dir=d, delete=False)
-        io.imsave(fout.name, cmap(im))
-        fout.close()
-        urls.append(pathlib.Path(fout.name).as_uri())
-    return d, urls
+        png = to_png(img_as_ubyte(cmap(im)))
+        url = 'data:image/png;base64,' + base64.b64encode(png).decode('utf-8')
+    return urls
 
 
 def bokeh_plot(df):
@@ -132,8 +130,7 @@ def bokeh_plot(df):
             </div>
         </div>
               """
-    d, filenames = temp_image_files(df['images'])
-    print(d)
+    filenames = b64_image_files(df['images'])
     df['image_files'] = filenames
     colors_raw = cm.get_cmap('viridis')(df['time'], bytes=True)
     colors_str = ['#%02x%02x%02x' % tuple(c[:3]) for c in colors_raw]
